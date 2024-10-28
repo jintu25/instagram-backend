@@ -1,19 +1,20 @@
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
-    sendId: {
+    senderId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: 'User',
+        required: true
     },
     receiverId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: 'User',
+        required: true
     },
     message: {
         type: String,
-        required: true,
+        required: [true, 'Message content is required.']  // Make sure the message field is required
     }
-})
+}, { timestamps: true });
 
-
-export default Message = mongoose.model("Message", messageSchema)
+export const Message = mongoose.model('Message', messageSchema);

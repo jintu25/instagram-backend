@@ -3,38 +3,52 @@ import bcrypt from 'bcrypt';
 import jwt from "jsonwebtoken"
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
+import Post from "../models/post.model.js";
+
 
 export const register = async (req, res) => {
     try {
         const { username, email, password } = req.body;
+
+        // Validate input
         if (!username || !email || !password) {
-            return res.status(401).json({
-                message: "something want wrong...",
+            return res.status(400).json({
+                message: "All fields are required",
                 success: false
             });
         }
-        const existEmail = await User.findOne({ email })
+
+        // Check if the email already exists
+        const existEmail = await User.findOne({ email });
         if (existEmail) {
             return res.status(400).json({
                 message: "User already exists",
                 success: false
             });
         }
-        const hashPassword = await bcrypt.hash(password, 12)
 
+        // Hash the password
+        const hashPassword = await bcrypt.hash(password, 12);
+
+        // Create the user
         await User.create({
             username,
             email,
             password: hashPassword
-        })
+        });
+
         return res.status(201).json({
-            message: "Account created successfully...",
+            message: "Account created successfully",
             success: true
-        })
+        });
     } catch (error) {
-        console.log(error)
+        console.log(error);
+        return res.status(500).json({
+            message: "Internal Server Error",
+            success: false
+        });
     }
-}
+};
 
 export const login = async (req, res) => {
     try {
@@ -59,6 +73,17 @@ export const login = async (req, res) => {
                 success: false
             });
         }
+        const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, { expiresIn: "1d" })
+
+        const populatePost = Promise.all(
+            user.posts.map(async (postId) => {
+                const post = await Post.findById(postId)
+                if (post.author.equals(user._id)) {
+                    return post
+                }
+                return null
+            })
+        )
         user = {
             _id: user._id,
             username: user.username,
@@ -67,9 +92,8 @@ export const login = async (req, res) => {
             bio: user.bio,
             followers: user.followers,
             following: user.following,
-            posts: user.posts
+            posts: populatePost
         }
-        const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, { expiresIn: "1d" })
         return res.cookie("token", token).json({
             message: `welcome back ${user.username}`,
             success: true,
@@ -94,7 +118,7 @@ export const logout = async (req, res) => {
 export const getProfile = async (req, res) => {
     try {
         const userId = req.params.id
-        const user = await User.findById(userId).select("-password")
+        const user = await User.findById(userId).populate({ path: "posts", createdAt: -1 }).populate("bookmarks")
 
         if (!user) {
             return res.status(404).json({
@@ -161,7 +185,7 @@ export const editProfile = async (req, res) => {
 
 export const suggestedUsers = async (req, res) => {
     try {
-        const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password").limit(10);
+        const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password").limit(20);
         if (!suggestedUsers) { 
             return res.status(404).json({
                 message: "currently do not have any user ",
