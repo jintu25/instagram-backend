@@ -12,6 +12,6 @@ router.route("/:id/dislike").get(isAuthenticate, dislikePost)
 router.route("/:id/comment").post(isAuthenticate, addComment)
 router.route("/:id/comment/all").get(isAuthenticate, getCommentOfPost)
 router.route("/delete/:id").delete(isAuthenticate, postDelete)
-router.route("/:id/bookmark").post(isAuthenticate, bookmarks)
+router.route("/:id/bookmark").get(isAuthenticate, bookmarks)
 
 export default router

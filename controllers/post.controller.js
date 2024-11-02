@@ -75,7 +75,7 @@ export const getUserPosts = async(req, res) => {
     try {
         const authorId = req.id;
         const posts = await Post.find({ author: authorId }).sort({ createdAt: -1 })
-        .populate({ path: 'author', select: "username, profilePicture" })
+            .populate({ path: 'author', select: "username profilePicture" })
         populate({
             path: "comments",
             sort: { createdAt: -1 },
@@ -109,8 +109,9 @@ export const likePost = async (req, res) => {
         await post.updateOne({ $addToSet: { likes: userId } });
 
         // implement socket io for real time chat application 
-        const user = await User.findById(userId).select("username, profilePicture")
+        const user = await User.findById(userId).select("username profilePicture")
         const ownerId = post.author.toString()
+        console.log(ownerId)
         if (user !== ownerId) {
             const notification = {
                 userId: userId, // Assuming the post model has an ownerId field
@@ -151,7 +152,7 @@ export const dislikePost = async (req, res) => {
 
         await post.updateOne({ $pull: { likes: userId } });
         // implement socket io for real time chat application 
-        const user = await User.findById(userId).select("username, profilePicture")
+        const user = await User.findById(userId).select("username profilePicture")
         const ownerId = post.author.toString()
         if (user !== ownerId) {
             const notification = {
@@ -212,7 +213,7 @@ export const getCommentOfPost = async (req, res) => {
         const postId = req.params.id;
         const comments = await Comment.find({ post: postId }).populate({
             path: "author",
-            select: "username, profilePicture"
+            select: "username profilePicture"
         })
         if (!comments) return res.status(404).json({
             message: "Comment Not Found",
@@ -265,7 +266,7 @@ export const bookmarks = async (req, res) => {
         if (user.bookmarks.includes(post._id)) {
             //if already bookmarks add work this concepts
             //remove the bookmarks
-            await user.updateOne({ $pull: { bookmarks: post_id } })
+            await user.updateOne({ $pull: { bookmarks: post._id } })
             user.save()
             return res.status(200).json({
                 type: "unsaved",
@@ -274,7 +275,7 @@ export const bookmarks = async (req, res) => {
             })
         } else {
             // add to bookmarks
-            await user.updateOne({ $addToSet: { bookmarks: post_id } })
+            await user.updateOne({ $addToSet: { bookmarks: post._id } })
             user.save()
             return res.status(200).json({
                 type: "saved",

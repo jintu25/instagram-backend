@@ -134,7 +134,6 @@ export const getProfile = async (req, res) => {
         console.log(error)
     }
 }
-
 export const editProfile = async (req, res) => {
     try {
         const userId = req.id;
@@ -185,21 +184,36 @@ export const editProfile = async (req, res) => {
 
 export const suggestedUsers = async (req, res) => {
     try {
-        const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password").limit(20);
-        if (!suggestedUsers) { 
-            return res.status(404).json({
-                message: "currently do not have any user ",
-                success: false
-            })
-        }
+        const loggedInUserId = req.id;
+
+        // Fetch the logged-in user's following list to compare
+        const loggedInUser = await User.findById(loggedInUserId).select("following");
+
+        // Fetch suggested users and exclude the password field
+        const users = await User.find({ _id: { $ne: loggedInUserId } }).select("-password").limit(20);
+
+        // Map over users to add `isFollowing` based on the logged-in user's following list
+        const suggestedUsers = users.map((user) => {
+            const isFollowing = loggedInUser.following.includes(user._id);
+            return {
+                ...user.toObject(),
+                isFollowing
+            };
+        });
+
         return res.status(200).json({
             success: true,
             users: suggestedUsers
-        })
+        });
     } catch (error) {
-        console.log(error)
+        console.log(error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
     }
-}
+};
+
 
 export const followOrUnFollow = async (req, res) => {
     try {
@@ -224,7 +238,6 @@ export const followOrUnFollow = async (req, res) => {
         }
 
         const isFollowing = user.following.includes(targetUserId);
-
         if (isFollowing) {
             // Unfollow logic
             await Promise.all([
@@ -232,10 +245,20 @@ export const followOrUnFollow = async (req, res) => {
                 User.updateOne({ _id: targetUserId }, { $pull: { followers: userId } })
             ]);
 
+            // Fetch updated user to return updated following list
+            const updatedUser = await User.findById(userId);
+
             return res.status(200).json({
                 message: `You have unfollowed ${targetedUser.username}`,
                 success: true,
-                action: "unfollow"
+                action: "unfollow",
+                following: updatedUser.following, // Updated following list for frontend
+                user: {
+                    user,
+                    id: targetedUser._id,
+                    username: targetedUser.username,
+                    profilePicture: targetedUser.profilePicture
+                }
             });
         } else {
             // Follow logic
@@ -244,18 +267,52 @@ export const followOrUnFollow = async (req, res) => {
                 User.updateOne({ _id: targetUserId }, { $push: { followers: userId } })
             ]);
 
+            // Fetch updated user to return updated following list
+            const updatedUser = await User.findById(userId);
+
             return res.status(200).json({
                 message: `You are now following ${targetedUser.username}`,
                 success: true,
-                action: "follow"
+                action: "follow",
+                following: updatedUser.following, // Updated following list for frontend
+                user: {
+                    user,
+                    id: targetedUser._id,
+                    username: targetedUser.username,
+                    profilePicture: targetedUser.profilePicture
+                }
             });
         }
-
     } catch (error) {
         console.log(error);
         return res.status(500).json({
             message: "Internal server error",
             success: false
         });
+    }
+};
+
+// Controller function to get followers and following lists
+export const getFollowersAndFollowing = async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        // Find the user and populate followers and following fields
+        const user = await User.findById(userId)
+            .populate('followers', 'username profilePicture')
+            .populate('following', 'username profilePicture');
+        console.log("follow and following user is: ", user)
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            followers: user.followers,
+            following: user.following,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
