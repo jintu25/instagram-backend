@@ -10,20 +10,17 @@ import { app, server } from "./socket/socket.js";
 dotenv.config({})
 const PORT = process.env.PORT || 3000;
 
-
-// middleware 
-app.use(express.json());
-app.use(cookieParser());
-app.use(urlencoded({ extended: true }));
-
 const corsOptions = {
     origin: 'http://localhost:5173',
     credentials: true,
 };
 
+// middleware 
 app.use(cors(corsOptions));
-
 app.options('*', cors(corsOptions));
+app.use(express.json());
+app.use(cookieParser());
+app.use(urlencoded({ extended: true }));
 
 app.use("/api/v1/user", userRouter)
 app.use("/api/v1/post", postRouter)
