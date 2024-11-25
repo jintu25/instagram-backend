@@ -11,7 +11,9 @@ dotenv.config({})
 const PORT = process.env.PORT || 3000;
 
 const corsOptions = {
-    origin: 'http://localhost:5173',
+    origin: process.env.NODE_ENV === "production"
+        ? "https://your-frontend-url.com"
+        : "http://localhost:5173",
     credentials: true,
 };
 
@@ -29,7 +31,9 @@ app.use("/api/v1/message", messageRouter)
 app.get("/", (req, res) => {
     res.send("backend server is running...")
 })
-
+app.get("/about", (req, res) => {
+    res.send("hello this is about section....")
+})
 server.listen(PORT, () => {
     connectDB()
     console.log(`Server is Running Port: ${PORT}`)
